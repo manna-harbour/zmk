@@ -5,9 +5,10 @@
 *
 */
 
+#include <kernel.h>
 #include <logging/log.h>
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
-
+#include <zmk/display.h>
 #include "layer_status.h"
 #include <zmk/events/layer_state_changed.h>
 #include <zmk/event_manager.h>
@@ -18,6 +19,13 @@ static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 static lv_style_t label_style;
 
 static bool style_initialized = false;
+
+K_MUTEX_DEFINE(layer_status_mutex);
+
+struct {
+    uint8_t index;
+    const char *label;
+} layer_status_state;
 
 void layer_status_init() {
     if (style_initialized) {
@@ -33,11 +41,12 @@ void layer_status_init() {
 }
 
 void set_layer_symbol(lv_obj_t *label) {
-    int active_layer_index = zmk_keymap_highest_layer_active();
 
-    LOG_DBG("Layer changed to %i", active_layer_index);
-
-    const char *layer_label = zmk_keymap_layer_label(active_layer_index);
+    k_mutex_lock(&layer_status_mutex, K_FOREVER);
+    const char *layer_label = layer_status_state.label;
+    uint8_t active_layer_index = layer_status_state.index;
+    k_mutex_unlock(&layer_status_mutex);
+    
     if (layer_label == NULL) {
         char text[6] = {};
 
@@ -63,9 +72,22 @@ lv_obj_t *zmk_widget_layer_status_obj(struct zmk_widget_layer_status *widget) {
     return widget->obj;
 }
 
-int layer_status_listener(const zmk_event_t *eh) {
+void layer_status_update_cb(struct k_work *work) {
     struct zmk_widget_layer_status *widget;
     SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) { set_layer_symbol(widget->obj); }
+}
+
+K_WORK_DEFINE(layer_status_update_work, layer_status_update_cb);
+
+int layer_status_listener(const zmk_event_t *eh) {
+    k_mutex_lock(&layer_status_mutex, K_FOREVER);
+    layer_status_state.index = zmk_keymap_highest_layer_active();
+    layer_status_state.label = zmk_keymap_layer_label(layer_status_state.index);
+    //LOG_DBG("Layer changed to %i", layer_status_state.index);
+
+    k_mutex_unlock(&layer_status_mutex);
+
+    k_work_submit_to_queue(zmk_display_work_q(), &layer_status_update_work);
     return 0;
 }
 
