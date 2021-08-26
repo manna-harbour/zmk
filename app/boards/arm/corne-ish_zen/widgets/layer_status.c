@@ -60,7 +60,7 @@ void set_layer_symbol(lv_obj_t *label) {
     }
 }
 
-void update_state() {
+static void update_state() {
     k_mutex_lock(&layer_status_mutex, K_FOREVER);
     layer_status_state.index = zmk_keymap_highest_layer_active();
     layer_status_state.label = zmk_keymap_layer_label(layer_status_state.index);
@@ -84,7 +84,7 @@ lv_obj_t *zmk_widget_layer_status_obj(struct zmk_widget_layer_status *widget) {
     return widget->obj;
 }
 
-static void layer_status_update_cb(struct k_work *work) {
+void layer_status_update_cb(struct k_work *work) {
     struct zmk_widget_layer_status *widget;
     SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) { set_layer_symbol(widget->obj); }
 }
