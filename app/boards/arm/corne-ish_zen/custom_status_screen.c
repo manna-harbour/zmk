@@ -68,7 +68,8 @@ lv_obj_t *zmk_display_status_screen() {
     lv_img_set_src(LayersHeading, &layers2);
 #endif
 
-    // lv_task_handler();
+    //lv_task_handler();
+    lv_refr_now(NULL);
     //display_blanking_off(display_dev);
 
     return screen;

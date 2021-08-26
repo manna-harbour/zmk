@@ -132,13 +132,21 @@ void set_status_symbol(lv_obj_t *icon) {
     //lv_label_set_text(label, text);
 }
 
+static void update_state() {
+    k_mutex_lock(&output_status_mutex, K_FOREVER);
+    output_status_state.selected_endpoint = zmk_endpoints_selected();
+    output_status_state.active_profile_connected = zmk_ble_active_profile_is_connected();
+    output_status_state.active_profile_bonded = !zmk_ble_active_profile_is_open();
+    output_status_state.active_profile_index = zmk_ble_active_profile_index();
+    k_mutex_unlock(&output_status_mutex);
+}
+
 int zmk_widget_output_status_init(struct zmk_widget_output_status *widget, lv_obj_t *parent) {
     output_status_init();
+    update_state();
     //widget->obj = lv_label_create(parent, NULL);
     widget->obj = lv_img_create(parent, NULL);
-    //lv_obj_add_style(widget->obj, LV_LABEL_PART_MAIN, &label_style);
-
-    //lv_obj_set_size(widget->obj, 40, 15);
+  
     set_status_symbol(widget->obj);
 
     sys_slist_append(&widgets, &widget->node);
@@ -158,18 +166,15 @@ void output_status_update_cb(struct k_work *work) {
 K_WORK_DEFINE(output_status_update_work, output_status_update_cb);
 
 int output_status_listener(const zmk_event_t *eh) {
+
+
     // Be sure we have widgets initialized before doing any work,
     // since the status event can fire before display code inits.
     if (!style_initialized) {
         return ZMK_EV_EVENT_BUBBLE;
     }
-    k_mutex_lock(&output_status_mutex, K_FOREVER);
-
-    output_status_state.selected_endpoint = zmk_endpoints_selected();
-    output_status_state.active_profile_connected = zmk_ble_active_profile_is_connected();
-    output_status_state.active_profile_bonded = !zmk_ble_active_profile_is_open();
-    output_status_state.active_profile_index = zmk_ble_active_profile_index();
-    k_mutex_unlock(&output_status_mutex);
+    
+    update_state();
 
     k_work_submit_to_queue(zmk_display_work_q(), &output_status_update_work);
     return ZMK_EV_EVENT_BUBBLE;
