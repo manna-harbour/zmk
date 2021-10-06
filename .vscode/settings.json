@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "*.overlay": "dts",
-    "*.keymap": "dts"
+    "*.keymap": "dts",
+    "battery_status.h": "c"
   }
 }

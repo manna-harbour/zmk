@@ -26,16 +26,28 @@ struct battery_status_state {
 #endif
 };
 
-static void set_battery_symbol(lv_obj_t *label, struct battery_status_state state) {
-    char text[2] = "  ";
+K_MUTEX_DEFINE(battery_status_mutex);
 
-    uint8_t level = state.level;
+struct {
+    uint8_t level;
+#if IS_ENABLED(CONFIG_USB)
+    bool usb_present;
+#endif
+} battery_status_state;
+
+void set_battery_symbol(lv_obj_t *label) {
+    char text[2] = "  ";
+    k_mutex_lock(&battery_status_mutex, K_FOREVER);
+
+    uint8_t level = battery_status_state.level;
 
 #if IS_ENABLED(CONFIG_USB)
-    if (state.usb_present) {
+    if (battery_status_state.usb_present) {
         strcpy(text, LV_SYMBOL_CHARGE);
     }
 #endif /* IS_ENABLED(CONFIG_USB) */
+
+    k_mutex_unlock(&battery_status_mutex);
 
     if (level > 95) {
         strcat(text, LV_SYMBOL_BATTERY_FULL);
@@ -87,3 +99,31 @@ int zmk_widget_battery_status_init(struct zmk_widget_battery_status *widget, lv_
 lv_obj_t *zmk_widget_battery_status_obj(struct zmk_widget_battery_status *widget) {
     return widget->obj;
 }
+
+void battery_status_update_cb(struct k_work *work) {
+    struct zmk_widget_battery_status *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) { set_battery_symbol(widget->obj); }
+}
+
+K_WORK_DEFINE(battery_status_update_work, battery_status_update_cb);
+
+int battery_status_listener(const zmk_event_t *eh) {
+    k_mutex_lock(&battery_status_mutex, K_FOREVER);
+
+    battery_status_state.level = bt_bas_get_battery_level();
+
+#if IS_ENABLED(CONFIG_USB)
+    battery_status_state.usb_present = zmk_usb_is_powered();
+#endif /* IS_ENABLED(CONFIG_USB) */
+
+    k_mutex_unlock(&battery_status_mutex);
+
+    k_work_submit_to_queue(zmk_display_work_q(), &battery_status_update_work);
+    return ZMK_EV_EVENT_BUBBLE;
+}
+
+ZMK_LISTENER(widget_battery_status, battery_status_listener)
+ZMK_SUBSCRIPTION(widget_battery_status, zmk_battery_state_changed);
+#if IS_ENABLED(CONFIG_USB)
+ZMK_SUBSCRIPTION(widget_battery_status, zmk_usb_conn_state_changed);
+#endif /* IS_ENABLED(CONFIG_USB) */

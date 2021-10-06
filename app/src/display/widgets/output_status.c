@@ -22,26 +22,41 @@ LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
 static sys_slist_t widgets = SYS_SLIST_STATIC_INIT(&widgets);
 
-struct output_status_state {
+static bool style_initialized = false;
+
+K_MUTEX_DEFINE(output_status_mutex);
+
+struct {
     enum zmk_endpoint selected_endpoint;
     bool active_profile_connected;
     bool active_profile_bonded;
     uint8_t active_profile_index;
-};
+} output_status_state;
 
-static struct output_status_state get_state(const zmk_event_t *_eh) {
-    return (struct output_status_state){.selected_endpoint = zmk_endpoints_selected(),
-                                        .active_profile_connected =
-                                            zmk_ble_active_profile_is_connected(),
-                                        .active_profile_bonded = !zmk_ble_active_profile_is_open(),
-                                        .active_profile_index = zmk_ble_active_profile_index()};
-    ;
+void output_status_init() {
+    if (style_initialized) {
+        return;
+    }
+
+    style_initialized = true;
+    lv_style_init(&label_style);
+    lv_style_set_text_color(&label_style, LV_STATE_DEFAULT, LV_COLOR_BLACK);
+    lv_style_set_text_font(&label_style, LV_STATE_DEFAULT, &lv_font_montserrat_16);
+    lv_style_set_text_letter_space(&label_style, LV_STATE_DEFAULT, 1);
+    lv_style_set_text_line_space(&label_style, LV_STATE_DEFAULT, 1);
 }
 
-static void set_status_symbol(lv_obj_t *label, struct output_status_state state) {
+void set_status_symbol(lv_obj_t *label) {
     char text[6] = {};
 
-    switch (state.selected_endpoint) {
+    k_mutex_lock(&output_status_mutex, K_FOREVER);
+    enum zmk_endpoint selected_endpoint = output_status_state.selected_endpoint;
+    bool active_profile_connected = output_status_state.active_profile_connected;
+    bool active_profie_bonded = output_status_state.active_profile_bonded;
+    uint8_t active_profile_index = output_status_state.active_profile_index;
+    k_mutex_unlock(&output_status_mutex);
+
+    switch (selected_endpoint) {
     case ZMK_ENDPOINT_USB:
         strcat(text, LV_SYMBOL_USB "   ");
         break;
@@ -94,3 +109,38 @@ int zmk_widget_output_status_init(struct zmk_widget_output_status *widget, lv_ob
 lv_obj_t *zmk_widget_output_status_obj(struct zmk_widget_output_status *widget) {
     return widget->obj;
 }
+
+void output_status_update_cb(struct k_work *work) {
+    struct zmk_widget_output_status *widget;
+    SYS_SLIST_FOR_EACH_CONTAINER(&widgets, widget, node) { set_status_symbol(widget->obj); }
+}
+
+K_WORK_DEFINE(output_status_update_work, output_status_update_cb);
+
+int output_status_listener(const zmk_event_t *eh) {
+    // Be sure we have widgets initialized before doing any work,
+    // since the status event can fire before display code inits.
+    if (!style_initialized) {
+        return ZMK_EV_EVENT_BUBBLE;
+    }
+    k_mutex_lock(&output_status_mutex, K_FOREVER);
+
+    output_status_state.selected_endpoint = zmk_endpoints_selected();
+    output_status_state.active_profile_connected = zmk_ble_active_profile_is_connected();
+    output_status_state.active_profile_bonded = !zmk_ble_active_profile_is_open();
+    output_status_state.active_profile_index = zmk_ble_active_profile_index();
+    k_mutex_unlock(&output_status_mutex);
+
+    k_work_submit_to_queue(zmk_display_work_q(), &output_status_update_work);
+    return ZMK_EV_EVENT_BUBBLE;
+}
+
+ZMK_LISTENER(widget_output_status, output_status_listener)
+ZMK_SUBSCRIPTION(widget_output_status, zmk_endpoint_selection_changed);
+
+#if defined(CONFIG_USB)
+ZMK_SUBSCRIPTION(widget_output_status, zmk_usb_conn_state_changed);
+#endif
+#if defined(CONFIG_ZMK_BLE)
+ZMK_SUBSCRIPTION(widget_output_status, zmk_ble_active_profile_changed);
+#endif
