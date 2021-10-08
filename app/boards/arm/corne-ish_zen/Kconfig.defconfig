@@ -90,9 +90,9 @@ config IL0323
 	bool
 	default y
 
-#config DISPLAY_WOB
-#	bool "White on Black Display"
-#	default n
+config DISPLAY_WOB
+	bool "White on Black Display"
+	default y
 
 endif # ZMK_DISPLAY
 
