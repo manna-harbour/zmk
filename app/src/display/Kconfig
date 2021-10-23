@@ -8,6 +8,7 @@ menuconfig ZMK_DISPLAY
     select LVGL
 	select LVGL_THEMES
 	select LVGL_THEME_MONO
+        select LVGL_USE_IMG
 
 if ZMK_DISPLAY
 
