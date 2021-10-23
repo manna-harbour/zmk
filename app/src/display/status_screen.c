@@ -36,14 +36,20 @@ lv_obj_t *zmk_display_status_screen() {
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_BATTERY_STATUS)
     zmk_widget_battery_status_init(&battery_status_widget, screen);
-    lv_obj_align(zmk_widget_battery_status_obj(&battery_status_widget), NULL, LV_ALIGN_IN_TOP_RIGHT,
-                 0, 0);
+    lv_obj_align(zmk_widget_battery_status_obj(&battery_status_widget), NULL, LV_ALIGN_CENTER,
+                 0, -40);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_OUTPUT_STATUS)
     zmk_widget_output_status_init(&output_status_widget, screen);
-    lv_obj_align(zmk_widget_output_status_obj(&output_status_widget), NULL, LV_ALIGN_IN_TOP_LEFT, 0,
+    lv_obj_align(zmk_widget_output_status_obj(&output_status_widget), NULL, LV_ALIGN_CENTER, 0,
                  0);
+#endif
+
+#if IS_ENABLED(CONFIG_ZMK_WIDGET_LOGO)
+    zmk_widget_logo_init(&logo_widget, screen);
+    lv_obj_align(zmk_widget_logo_obj(&logo_widget), NULL, LV_ALIGN_CENTER, 0,
+                 40);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_LAYER_STATUS)
@@ -51,14 +57,14 @@ lv_obj_t *zmk_display_status_screen() {
     lv_obj_set_style_local_text_font(zmk_widget_layer_status_obj(&layer_status_widget),
                                      LV_LABEL_PART_MAIN, LV_STATE_DEFAULT,
                                      lv_theme_get_font_small());
-    lv_obj_align(zmk_widget_layer_status_obj(&layer_status_widget), NULL, LV_ALIGN_IN_BOTTOM_LEFT,
-                 0, 0);
+    lv_obj_align(zmk_widget_layer_status_obj(&layer_status_widget), NULL, LV_ALIGN_CENTER,
+                 0, 40);
 #endif
 
 #if IS_ENABLED(CONFIG_ZMK_WIDGET_WPM_STATUS)
     zmk_widget_wpm_status_init(&wpm_status_widget, screen);
-    lv_obj_align(zmk_widget_wpm_status_obj(&wpm_status_widget), NULL, LV_ALIGN_IN_BOTTOM_RIGHT, -12,
-                 0);
+    lv_obj_align(zmk_widget_wpm_status_obj(&wpm_status_widget), NULL, LV_ALIGN_CENTER, 0,
+                 40);
 #endif
     return screen;
 }
