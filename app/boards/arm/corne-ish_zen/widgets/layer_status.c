@@ -23,9 +23,22 @@ struct layer_status_state {
     const char *label;
 };
 
+#if IS_ENABLED(CONFIG_ZMK_DISPLAY_HIDE_MOMENTARY_LAYERS)
+uint8_t last_perm_index = 255;
+#endif
+
 static void set_layer_symbol(lv_obj_t *label, struct layer_status_state state) {
     const char *layer_label = state.label;
     uint8_t active_layer_index = state.index;
+
+#if IS_ENABLED(CONFIG_ZMK_DISPLAY_HIDE_MOMENTARY_LAYERS)
+    if (!zmk_keymap_layer_momentary(active_layer_index) && last_perm_index != active_layer_index) {
+        last_perm_index = active_layer_index;
+        LOG_DBG("Last perm layer index updated to %i", active_layer_index);
+    } else {
+        return;
+    }
+#endif
 
     if (layer_label == NULL) {
         char text[6] = {};
