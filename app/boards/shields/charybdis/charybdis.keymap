@@ -41,5 +41,16 @@
             >;
             trackball-bindings = <&tsl_fine>;
         };
+
+        Mouse {
+            bindings = <
+   &trans  &trans  &trans     &trans  &trans     &trans    &trans  &trans  &trans  &trans  &trans     &trans
+   &trans  &trans  &trans     &trans  &trans     &trans    &trans  &trans  &trans  &trans  &trans     &trans
+&mkp MCLK  &trans  &trans     &trans  &trans     &trans    &trans  &trans  &trans  &trans  &trans  &mkp LCLK
+                           &mkp LCLK  &trans  &mkp RCLK    &trans  &trans
+            >;
+            trackball-bindings = <&tmv_fine>;
+        };
+
     };
 };
